@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+   xmlns="http://www.mulesoft.org/schema/mule/core"
+   xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+   <http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="45120f60-2020-4ca4-ba13-27b3c26858c2" >
+       <http:listener-connection host="0.0.0.0" port="8082" />
+   </http:listener-config>
+   <http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="c9ba9a06-db52-4273-8431-5e8040c01695" >
+       <http:request-connection host="api.meteostat.net" protocol="HTTPS"/>
+   </http:request-config>
+   <flow name="weatherFlow" doc:id="481ca171-530c-45fc-81a7-f8f5fb1ff75f" initialState="started">
+       <http:listener doc:name="Listener" doc:id="6c230977-61f5-4290-b1ff-b7e6357b81ef" config-ref="HTTP_Listener_config" path="/weather"/>
+       <http:request method="GET" doc:name="Request" doc:id="3b87d049-ae83-491c-8e04-4b3c79cf69ec" config-ref="HTTP_Request_configuration" path="/v1/history/daily">
+           <http:query-params ><![CDATA[#[output application/java
+---
+{
+   "start" : "2017-01-01",
+   "key" : "lR0cZrnk",
+   "end" : "2017-12-31",
+   "station" : "10637"
+}]]]></http:query-params>
+       </http:request>
+        <ee:transform doc:name="Transform Message" doc:id="bfef21e0-43b3-43a6-a63e-84608aa9ad91">
+           <ee:message>
+               <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var x = payload.data map  $.temperature_max
+---
+[{"January_max_temp":max(x filter (item, index) -> index <31)},
+{"febrauary_max_temp": max((((x filter (item, index) -> index > 30))
+filter (item, index) -> index<28) )},
+{"march_max_temp": max((((x filter (item, index) -> index > 58))
+filter (item, index) -> index<31) )},
+{"april_max_temp": max((((x filter (item, index) -> index > 89))
+filter (item, index) -> index<30) )},
+{"may_max_temp": max((((x filter (item, index) -> index > 119))
+filter (item, index) -> index<31) )},
+{"june_max_temp": max((((x filter (item, index) -> index > 150))
+filter (item, index) -> index<30) )},
+{"july_max_temp": max((((x filter (item, index) -> index > 180))
+filter (item, index) -> index<31) )},
+{"august_max_temp": max((((x filter (item, index) -> index > 211))
+filter (item, index) -> index<31) )},
+{"september_max_temp": max((((x filter (item, index) -> index > 242))
+filter (item, index) -> index<30) )},
+{"october_max_temp": max((((x filter (item, index) -> index > 272))
+filter (item, index) -> index<31) )},
+{"november_max_temp": max((((x filter (item, index) -> index > 303))
+filter (item, index) -> index<30) )},
+{"december_max_temp": max((((x filter (item, index) -> index > 333))
+filter (item, index) -> index<31) )},
+]
+]]></ee:set-payload>
+           </ee:message>
+       </ee:transform>
+        <set-payload value="#[payload]" doc:name="Set Payload" doc:id="33d7af99-9fee-4b3b-8415-710173aa7758" />
+
+</flow>
+	<flow name="AvgweatherFlow" doc:id="ae8d09e0-e406-44e1-ade0-e4348db517fb" initialState="stopped">
+		<http:listener doc:name="Listener" doc:id="d110963d-90bb-4dca-864a-94609637acf1" config-ref="HTTP_Listener_config" path="/avg"/>
+		<http:request method="GET" doc:name="Request" doc:id="a31de772-7f5f-4b31-97ae-9c87a3422e37" config-ref="HTTP_Request_configuration" url="/v1/history/daily">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+   "start" : "2017-01-01",
+   "key" : "lR0cZrnk",
+   "end" : "2017-12-31",
+   "station" : "10637"
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="db20b643-2133-4c03-b102-da4114b1b1fc" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+avg(payload.data.precipitation filter (value, index) -> (value != null))
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-payload value="#[payload]" doc:name="Set Payload" doc:id="f44953b8-e1c0-447b-a8fe-b9c7a447ef2e" />
+	</flow>
+	<flow name="MinweatherFlow" doc:id="e65c4291-87b9-4f88-85f3-057f1a9a9be1" initialState="stopped">
+		<http:listener doc:name="Listener" doc:id="9f6f1186-c4e6-40a1-b8cd-f152690255d8" config-ref="HTTP_Listener_config" path="/min"/>
+		<http:request method="GET" doc:name="Request" doc:id="4db5d54e-b11f-4adb-b999-76e978a469f7" config-ref="HTTP_Request_configuration" url="/v1/history/daily">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+   "start" : "2017-01-01",
+   "key" : "lR0cZrnk",
+   "end" : "2017-12-31",
+   "station" : "10637"
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="40284a5b-d653-4849-a8de-ff600df047d3" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+min(payload.data.precipitation filter (value, index) -> (value != "0"))]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-payload value="#[payload]" doc:name="Set Payload" doc:id="8646106b-008a-4140-b95a-ddddb9c9d65e" />
+	</flow>
+
+</mule>
